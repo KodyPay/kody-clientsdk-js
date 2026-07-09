@@ -62,13 +62,17 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+
   release:
-    needs: [tagging, publish]
+    needs:
+      - tagging
+      - publish
     runs-on: ubuntu-latest
     steps:
       - name: Create Release
         uses: ncipollo/release-action@v1.14.0
         with:
+          token: ${{ secrets.GH_PUB_RELEASE }}
           name: "${{ needs.tagging.outputs.tag }}"
           tag: "${{ needs.tagging.outputs.tag }}"
           omitBody: true
