@@ -1,0 +1,17 @@
+{
+  "name": "@kodypay/kody-clientsdk-js",
+  "version": "0.0.0-NOT-USED",
+  "description": "Kody client SDK gRPC protos for JS/TS consumers",
+  "author": "tech@kodypay.com",
+  "license": "MIT",
+  "files": [
+    "src/main/proto/**/*.proto"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KodyPay/kody-clientsdk-js.git"
+  }
+}

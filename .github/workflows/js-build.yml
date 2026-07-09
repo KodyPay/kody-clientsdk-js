@@ -1,0 +1,77 @@
+name: JS SDK Build & Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      kp_tag:
+        description: 'Optional tag for kp-protocols-clientsdk'
+        required: false
+        default: ''
+
+jobs:
+  tagging:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      version: ${{ steps.tag.outputs.version }}
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - name: Determine version tag from kp-protocols-clientsdk
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.kp_tag }}" ]; then
+            version_tag=${{ github.event.inputs.kp_tag }}
+          else
+            git clone --branch main https://github.com/KodyPay/kp-protocols-clientsdk.git proto-repo
+            cd proto-repo
+            version_tag=$(git describe --tags --exact-match HEAD 2>/dev/null || echo "")
+          fi
+          if [[ -z "${version_tag}" ]]; then
+            echo "No tag found on the head commit of kp-protocols-clientsdk repo. Failing the action."
+            exit 1
+          fi
+          echo "tag=${version_tag}" >> $GITHUB_OUTPUT
+          echo "version=${version_tag#v}" >> $GITHUB_OUTPUT
+          if [[ "${version_tag}" == *-* ]]; then echo "prerelease=true" >> $GITHUB_OUTPUT; else echo "prerelease=false" >> $GITHUB_OUTPUT; fi
+
+  publish:
+    needs: tagging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout proto repository at tag
+        run: |
+          git clone https://github.com/KodyPay/kp-protocols-clientsdk.git proto-repo
+          cd proto-repo
+          git checkout tags/${{ needs.tagging.outputs.tag }} -b temp-branch || { echo "Failed to checkout tag ${{ needs.tagging.outputs.tag }}"; exit 1; }
+          cd ..
+          mv proto-repo/src .
+          rm -rf proto-repo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@kodypay'
+      - name: Set package version
+        run: npm version "${{ needs.tagging.outputs.version }}" --no-git-tag-version --allow-same-version
+      - name: Publish to GitHub Packages
+        run: npm publish ${{ needs.tagging.outputs.prerelease == 'true' && '--tag next' || '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: [tagging, publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        uses: ncipollo/release-action@v1.14.0
+        with:
+          name: "${{ needs.tagging.outputs.tag }}"
+          tag: "${{ needs.tagging.outputs.tag }}"
+          omitBody: true
+          draft: false
+          prerelease: ${{ needs.tagging.outputs.prerelease == 'true' }}
+          makeLatest: ${{ needs.tagging.outputs.prerelease == 'false' }}
