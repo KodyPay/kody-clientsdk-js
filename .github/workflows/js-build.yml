@@ -62,16 +62,3 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  release:
-    needs: [tagging, publish]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Create Release
-        uses: ncipollo/release-action@v1.14.0
-        with:
-          name: "${{ needs.tagging.outputs.tag }}"
-          tag: "${{ needs.tagging.outputs.tag }}"
-          omitBody: true
-          draft: false
-          prerelease: ${{ needs.tagging.outputs.prerelease == 'true' }}
-          makeLatest: ${{ needs.tagging.outputs.prerelease == 'false' }}
